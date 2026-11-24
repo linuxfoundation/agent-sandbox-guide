@@ -1,0 +1,24 @@
+# Lima VM that acts as the dedicated "Linux host" on an M3+ Mac running macOS 15+.
+# Create the thin-pool disk first:
+#   limactl disk create agent-thinpool --size 200GiB --format raw
+# Then: limactl create --name agent-host ./config/lima/agent-host.yaml && limactl start agent-host
+# See docs/04-macos.md.
+vmType: vz
+nestedVirtualization: true
+arch: aarch64
+cpus: 8
+memory: 32GiB
+disk: 60GiB
+images:
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img"
+    arch: aarch64            # stock Ubuntu arm64 kernel uses 4K pages, which Firecracker requires
+mounts: []                   # no host directories in the VM
+containerd:
+  system: false              # we install Docker/containerd ourselves
+  user: false
+portForwards:
+  - guestPortRange: [1, 65535]
+    ignore: true             # don't expose VM ports on the Mac's localhost
+additionalDisks:
+  - name: agent-thinpool
+    format: false            # leave raw; used for the LVM thin pool (verify key for your Lima version)

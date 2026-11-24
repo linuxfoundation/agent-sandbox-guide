@@ -1,0 +1,4 @@
+# Hosts agents may reach on port 443 through the egress proxy. One per line.
+# Prefix with "." to include subdomains (e.g. .pypi-mirror.internal.example).
+# Starts empty: add only what the engagement needs.
+# Never add the model-API host (api.anthropic.com, Bedrock, Vertex); use the credential proxy.

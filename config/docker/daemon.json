@@ -1,0 +1,5 @@
+{
+  "features": { "containerd-snapshotter": true },
+  "storage-driver": "devmapper",
+  "runtimes": { "kata-fc": { "runtimeType": "io.containerd.kata.v2" } }
+}

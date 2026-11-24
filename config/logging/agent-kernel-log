@@ -1,0 +1,10 @@
+#!/bin/sh
+# Install as /etc/cron.daily/agent-kernel-log (mode 0755).
+# journald can't guarantee minimum retention, so save yesterday's firewall drop lines to a file,
+# then prune transcripts and kernel exports older than 45 days.
+set -eu
+OUT=/var/log/agent-sandbox/kernel
+mkdir -p "$OUT"
+journalctl -k --since yesterday --until today --no-pager \
+  | grep -E 'agent-(egress|to-host)-drop' > "$OUT/drops-$(date -u -d yesterday +%F).log" || true
+find /var/log/agent-sandbox/transcripts /var/log/agent-sandbox/kernel -type f -mtime +45 -delete

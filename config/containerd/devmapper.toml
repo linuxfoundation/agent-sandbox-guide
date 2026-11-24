@@ -1,0 +1,8 @@
+
+# Append to /etc/containerd/config.toml. See docs/01-linux-host.md.
+# Pool created with LVM: vg "containerd", thin LV "thinpool" -> dm name "containerd-thinpool".
+[plugins."io.containerd.snapshotter.v1.devmapper"]
+  pool_name = "containerd-thinpool"
+  root_path = "/var/lib/containerd/devmapper"
+  base_image_size = "10GB"
+  discard_blocks = true

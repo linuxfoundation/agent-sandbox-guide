@@ -1,0 +1,9 @@
+# Install as /etc/logrotate.d/agent-sandbox. Keeps 45 days (article asks for 30+).
+/var/log/agent-sandbox/squid/*.log /var/log/agent-sandbox/credproxy/*.log {
+    daily
+    rotate 45
+    compress
+    delaycompress
+    missingok
+    copytruncate
+}

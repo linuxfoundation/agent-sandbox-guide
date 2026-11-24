@@ -1,0 +1,14 @@
+# Log and drop anything leaving the agent bridge, or aimed at the host.
+# For Docker's nftables backend ("firewall-backend": "nftables"). Runs before Docker's tables.
+# Load with: sudo nft -f config/firewall/agent-egress.nft   See docs/02-network.md.
+
+table inet agent-egress {
+  chain fwd {
+    type filter hook forward priority filter - 10; policy accept;
+    iifname "br-agents" oifname != "br-agents" log prefix "agent-egress-drop: " drop
+  }
+  chain in {
+    type filter hook input priority filter - 10; policy accept;
+    iifname "br-agents" log prefix "agent-to-host-drop: " drop
+  }
+}
