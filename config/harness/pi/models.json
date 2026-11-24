@@ -1,0 +1,7 @@
+{
+  "providers": {
+    "anthropic": {
+      "baseUrl": "http://172.30.0.3:8080"
+    }
+  }
+}

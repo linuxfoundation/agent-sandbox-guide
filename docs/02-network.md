@@ -66,15 +66,17 @@ This is a small HTTP forwarder that **you supply**. The [sandboxing article](htt
   `docker exec -i cred-proxy sh -c 'cat > /run/secret/key' < key-file`.
 - Start one per launch, remove it after the run, and check for leftovers. Use a narrowly scoped key and rotate it after any suspicious transcript.
 
-The agent container gets only:
+All three supported harnesses ([Claude Code, pi, opencode](03-running-agents.md#choose-a-harness)) speak the Anthropic Messages API, sending the key as `x-api-key`. So the proxy only needs to forward `POST /v1/messages` (and `/v1/messages/count_tokens` if you allow it). Each agent gets a placeholder `ANTHROPIC_API_KEY` and is pointed at the proxy:
 
-```bash
-ANTHROPIC_BASE_URL=http://172.30.0.3:8080
-ANTHROPIC_API_KEY=sk-placeholder-not-a-real-key
-CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
-```
+| Harness | How it finds the credential proxy |
+| --- | --- |
+| Claude Code | `ANTHROPIC_BASE_URL=http://172.30.0.3:8080` env var |
+| pi | `baseUrl` in `~/.pi/agent/models.json`, baked into the image from [`config/harness/pi/models.json`](../config/harness/pi/models.json). pi ignores `ANTHROPIC_BASE_URL`. **⚠ verify:** whether the value needs a `/v1` suffix (the source suggests not; the docs example has one). |
+| opencode | `providers.anthropic.settings.baseURL` (with `/v1`) in `/etc/opencode/opencode.json`, baked into the image from [`config/harness/opencode/opencode.json`](../config/harness/opencode/opencode.json). opencode ignores `ANTHROPIC_BASE_URL`. |
 
-For Bedrock or Vertex, the agent gets `CLAUDE_CODE_SKIP_BEDROCK_AUTH=1` or `CLAUDE_CODE_SKIP_VERTEX_AUTH=1` plus `AWS_REGION` or `CLOUD_ML_REGION`. For Vertex, limit the proxy to `:rawPredict`, `:streamRawPredict` and `:countTokens`, and use an IAM role that holds only `aiplatform.endpoints.predict`.
+Keep the placeholder free of an `sk-ant-oat` prefix: pi treats that prefix as an OAuth token and changes how it authenticates.
+
+For Claude Code on Bedrock or Vertex, the agent gets `CLAUDE_CODE_SKIP_BEDROCK_AUTH=1` or `CLAUDE_CODE_SKIP_VERTEX_AUTH=1` plus `AWS_REGION` or `CLOUD_ML_REGION`. For Vertex, limit the proxy to `:rawPredict`, `:streamRawPredict` and `:countTokens`, and use an IAM role that holds only `aiplatform.endpoints.predict`. The pi and opencode configs here assume the Anthropic API.
 
 ## Host firewall: log and drop bypass attempts
 

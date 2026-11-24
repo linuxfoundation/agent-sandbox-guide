@@ -1,6 +1,6 @@
-# Agent sandbox guide: Claude Code in Firecracker microVMs
+# Agent sandbox guide: coding agents in Firecracker microVMs
 
-This guide shows how to set up a Linux or macOS workstation so each AI coding agent runs in its own Firecracker microVM. Outbound traffic is denied by default, allowed hosts are listed explicitly, and every connection attempt is logged.
+This guide shows how to set up a Linux or macOS workstation so each AI coding agent runs in its own Firecracker microVM. It supports [Claude Code, pi and opencode](docs/03-running-agents.md#choose-a-harness) as the agent harness. Outbound traffic is denied by default, allowed hosts are listed explicitly, and every connection attempt is logged.
 
 It follows Anthropic's *Agent containment best practices*: the [getting started](https://support.claude.com/en/articles/17316076) and [sandboxing](https://support.claude.com/en/articles/17316105-agent-containment-best-practices-sandboxing-private-beta) articles. Those articles are private-beta **recommendations, not requirements**. Re-read them before you rely on this guide.
 
@@ -16,7 +16,7 @@ It follows Anthropic's *Agent containment best practices*: the [getting started]
 | Outbound allowlist | A Squid egress proxy allows only listed `host:port` entries over CONNECT. Everything else returns 403 and is logged. |
 | API key never in the guest | A credential proxy adds the key. The agent gets a placeholder. |
 | Bypass attempts logged | Host firewall rules log and drop anything leaving the agent bridge. |
-| Bounded runs | `--max-turns`, a hard wall-clock `timeout`, and `docker rm -f`. |
+| Bounded runs | A turn limit for each harness, a hard wall-clock `timeout`, and `docker rm -f`. |
 | Evidence | Squid log, credential-proxy log, kernel firewall log, Kata/containerd/docker journals, and the agent transcript. Keep them for 30 days or more. |
 
 Never give an agent or target container `--privileged`, `--device`, `--cap-add`, or `--network host`. Don't connect agents to MCP servers or other tools that can write to external state.
@@ -34,7 +34,7 @@ Never give an agent or target container `--privileged`, `--device`, `--cap-add`,
  │   │ 172.30.0.1N                │                 │                        │
  │   └────────────────────────────┘   ┌─────────────┴──────────────┐         │
  │                                    │ agent-N  (kata-fc microVM) │         │
- │                                    │ claude -p, own kernel      │         │
+ │                                    │ agent CLI, own kernel      │         │
  │                                    └──┬──────────────────────┬──┘         │
  │          HTTPS_PROXY 172.30.0.2:3128  │                      │ ANTHROPIC_BASE_URL 172.30.0.3:8080
  │   ┌───────────────────────────────────▼─┐  ┌─────────────────▼───────────┐│
@@ -61,7 +61,7 @@ Firecracker does not filter packets itself. All egress control happens on the ho
 
 1. [Linux host setup](docs/01-linux-host.md): prerequisites, Kata + Firecracker install, config hardening, devmapper storage, Docker runtime.
 2. [Network allowlist and logging](docs/02-network.md): internal network, Squid egress proxy, credential proxy, host firewall log and drop.
-3. [Running an agent](docs/03-running-agents.md): agent image and the `run-agent.sh` launcher.
+3. [Running an agent](docs/03-running-agents.md): choosing Claude Code, pi or opencode, building the agent image, and the `run-agent.sh` launcher.
 4. [macOS workstations](docs/04-macos.md): Lima nested-virtualization VM, or a remote host.
 5. [Verify before you trust it](docs/05-verify.md): isolation and egress checks, plus a supervised escape test.
 6. [Logs and retention](docs/06-logging.md): where each log lives, and how to keep logs for 30 days or more.
@@ -75,10 +75,11 @@ config/containerd/devmapper.toml  containerd devmapper snapshotter block
 config/docker/daemon.json         Docker: containerd image store, devmapper, kata-fc runtime
 config/firewall/iptables.sh       log + drop rules (Docker's default iptables backend)
 config/firewall/agent-egress.nft  same rules for Docker's nftables backend
+config/harness/                   pi and opencode configs that point them at the credential proxy
 config/lima/agent-host.yaml       Lima VM for macOS option A
 config/logging/                   logrotate config and daily kernel-log export
 config/squid/                     Squid config and empty allowlist
-docker/agent.Dockerfile           agent image (Claude Code CLI + tools)
+docker/agent.Dockerfile           agent image (one harness: Claude Code, pi or opencode, plus tools)
 scripts/run-agent.sh              launcher: preflight checks, companion + microVM, limits, transcript
 ```
 

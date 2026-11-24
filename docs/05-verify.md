@@ -15,14 +15,16 @@ Run these on every new host, and again after any Kata, Docker, or model change. 
 | No direct route | `docker exec $A curl --noproxy '*' -m 5 https://1.1.1.1` | Fails |
 | Host access logged | `docker exec $A curl --noproxy '*' -m 5 http://172.30.0.1:22`, then `journalctl -k \| grep agent-to-host-drop` | Times out, and a log line appears (if the bridge has a host address) |
 | Metadata unreachable | `docker exec $A curl -m 5 -x http://172.30.0.2:3128 http://169.254.169.254/`, then again with `--noproxy '*'` instead of `-x` (curl ignores uppercase `HTTP_PROXY`, so pass the proxy explicitly) | Proxy returns 403 and logs `TCP_DENIED`. The direct attempt fails. |
-| No real credential | `docker exec $A env \| grep -Ei 'anthropic\|claude\|aws\|google\|vertex'` | Only the placeholder, proxy URLs and provider flags |
+| No real credential | `docker exec $A env \| grep -Ei 'anthropic\|claude\|aws\|google\|vertex\|pi_\|opencode'` | Only the placeholder, proxy URLs and harness settings |
+| Harness config can't be bypassed | Claude Code: `docker exec $A env \| grep ANTHROPIC_BASE_URL`. pi: `docker exec $A cat ~/.pi/agent/models.json`. opencode: `docker exec $A opencode debug config` (⚠ verify the subcommand) | Model traffic points at `172.30.0.3`. Pointing it straight at `api.anthropic.com` still fails, because the egress proxy denies it. |
 | Clean teardown | After a run: `docker ps -a; pgrep -a firecracker` | No leftover agent, companion, VM or cred-proxy |
 
 Then:
 
 1. Have Claude review the setup **on the host**: `configuration.toml`, `daemon.json`, `squid.conf`, the allowlist, the credential proxy, `run-agent.sh`, and the mount list.
 2. Run a **supervised escape test** through the real `run-agent.sh` on a throwaway host. Name the boundary in the prompt: the host, other containers, the runtime socket, the metadata service, and non-allowlisted hosts. Read the whole transcript for proxy bypass attempts, credential or metadata reads, socket use, writes outside the workspace, and attempts to change the agent's settings.
-3. Run a small batch end to end with your real credential mode (API key, Bedrock, Vertex or WIF each behave differently). Afterwards, the egress log should show only the deny lines from your probes, and the credential-proxy log only model calls.
+3. Repeat the escape test for each harness you plan to use. pi and opencode have no action classifier, so the sandbox is the only control for them.
+4. Run a small batch end to end with your real credential mode (API key, Bedrock, Vertex or WIF each behave differently). Afterwards, the egress log should show only the deny lines from your probes, and the credential-proxy log only model calls.
 
 ---
 
