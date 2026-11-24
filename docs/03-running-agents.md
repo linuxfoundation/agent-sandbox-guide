@@ -61,6 +61,7 @@ HARNESS=opencode MODEL=<model-id> run-agent.sh a3 13 ./repo "Describe the taskâ€
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `HARNESS` | `claude` | `claude`, `pi` or `opencode` |
+| `AUTH` | `api-key` | `api-key` (any harness), `claude-oauth` (Claude Code with a Claude subscription seat), or `copilot` (opencode with GitHub Copilot). See [Subscription logins](07-subscription-logins.md). |
 | `AGENT_IMAGE` | `agent-<HARNESS>:latest` | Image built for that harness |
 | `MODEL` | unset | Model ID. Required for pi and opencode, optional for Claude Code. |
 | `MAX_TURNS` | `50` | Turn limit. For opencode, set `agents.build.steps` in its config and rebuild instead. |

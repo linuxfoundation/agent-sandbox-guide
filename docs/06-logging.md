@@ -1,6 +1,6 @@
 # 6. Logs and retention (30 days or more)
 
-[← Verify before you trust it](05-verify.md) · [Overview](../README.md)
+[← Verify before you trust it](05-verify.md) · Next: [Subscription logins →](07-subscription-logins.md)
 
 | Source | Location |
 | --- | --- |
@@ -24,4 +24,4 @@ Copy everything to an archive that agents can't reach. Review the logs during an
 
 ---
 
-[← Overview](../README.md)
+Next: [Subscription logins →](07-subscription-logins.md)

@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Launch one coding agent (Claude Code, pi or opencode) in its own Firecracker microVM.
-# See docs/03-running-agents.md.
+# See docs/03-running-agents.md and docs/07-subscription-logins.md.
 # Usage: run-agent.sh <id> <ip-last-octet 10-254> <workdir> "<prompt>"
 #   env: HARNESS      claude | pi | opencode (default claude)
+#        AUTH         api-key (default, any harness)
+#                     claude-oauth (Claude Code only: Pro/Max/Team/Enterprise via `claude setup-token`)
+#                     copilot (opencode only: GitHub Copilot)
 #        AGENT_IMAGE  image built with that harness (default agent-<HARNESS>:latest)
 #        MODEL        model id; required for pi and opencode (e.g. from `pi --list-models anthropic`)
 #        MAX_TURNS    turn limit (default 50; opencode uses agents.build.steps in its image config)
@@ -11,6 +14,7 @@ set -euo pipefail
 [[ $# -eq 4 ]] || { echo "usage: $0 <id> <octet> <workdir> <prompt>" >&2; exit 2; }
 ID="$1"; N="$2"; WORKDIR="$3"; PROMPT="$4"
 HARNESS="${HARNESS:-claude}"
+AUTH="${AUTH:-api-key}"
 AGENT_IMAGE="${AGENT_IMAGE:-agent-${HARNESS}:latest}"
 MODEL="${MODEL:-}"
 MAX_TURNS="${MAX_TURNS:-50}"; LIMIT="${LIMIT:-3600}"
@@ -19,7 +23,7 @@ LOG="$LOG_DIR/${ID}-${HARNESS}-$(date -u +%Y%m%dT%H%M%SZ).jsonl"
 
 EGRESS_PROXY=http://172.30.0.2:3128
 CRED_PROXY=http://172.30.0.3:8080
-PLACEHOLDER_KEY=placeholder-not-a-real-key   # never real; the credential proxy adds the key
+PLACEHOLDER=placeholder-not-a-real-credential   # never real; the credential proxy adds the credential
 
 # Refuse to launch unless the sandbox is really there and the settings make sense
 [[ -c /dev/kvm ]] || { echo "no /dev/kvm" >&2; exit 1; }
@@ -33,9 +37,22 @@ case "$HARNESS" in
   pi|opencode) [[ -n "$MODEL" ]] || { echo "MODEL is required for $HARNESS" >&2; exit 1; } ;;
   *) echo "HARNESS must be claude, pi or opencode" >&2; exit 1 ;;
 esac
+case "$HARNESS/$AUTH" in
+  */api-key|claude/claude-oauth|opencode/copilot) ;;
+  pi/claude-oauth|opencode/claude-oauth)
+    echo "AUTH=claude-oauth is only permitted with Claude Code (see docs/07-subscription-logins.md)" >&2; exit 1 ;;
+  *) echo "AUTH=$AUTH is not supported with HARNESS=$HARNESS" >&2; exit 1 ;;
+esac
 mkdir -p "$LOG_DIR"
 
-# Per-harness environment and command. All three reach the model only via the credential proxy.
+# Credential placeholder for the guest. The real credential lives only in the credential proxy.
+case "$AUTH" in
+  api-key)      AUTH_ENV=(-e "ANTHROPIC_API_KEY=$PLACEHOLDER"); PROVIDER=anthropic ;;
+  claude-oauth) AUTH_ENV=(-e "CLAUDE_CODE_OAUTH_TOKEN=$PLACEHOLDER"); PROVIDER=anthropic ;;
+  copilot)      AUTH_ENV=(-e "COPILOT_GITHUB_TOKEN=$PLACEHOLDER"); PROVIDER=github-copilot ;;
+esac
+
+# Per-harness environment and command. Model traffic goes only to the credential proxy.
 HARNESS_ENV=(); CMD=()
 case "$HARNESS" in
   claude)
@@ -46,12 +63,12 @@ case "$HARNESS" in
   pi)
     # Base URL comes from ~/.pi/agent/models.json in the image (pi ignores ANTHROPIC_BASE_URL)
     HARNESS_ENV=(-e PI_OFFLINE=1 -e PI_TELEMETRY=0)
-    CMD=(pi --mode json --no-approve --no-mcp --no-session --model "anthropic/$MODEL" "$PROMPT") ;;
+    CMD=(pi --mode json --no-approve --no-mcp --no-session --model "$PROVIDER/$MODEL" "$PROMPT") ;;
   opencode)
     # Base URL, step limit and web-tool denies come from /etc/opencode/opencode.json in the image
     HARNESS_ENV=(-e OPENCODE_DISABLE_MODELS_FETCH=1 -e OPENCODE_DISABLE_AUTOUPDATE=1
                  -e OPENCODE_DISABLE_PROJECT_CONFIG=1)
-    CMD=(opencode run --standalone --format json -m "anthropic/$MODEL" "$PROMPT") ;;
+    CMD=(opencode run --standalone --format json -m "$PROVIDER/$MODEL" "$PROMPT") ;;
 esac
 
 # shellcheck disable=SC2329  # invoked via trap
@@ -66,8 +83,7 @@ docker run -d --name "agent-$ID" --runtime kata-fc --network "container:agent-$I
   --memory 4g --pids-limit 1024 --security-opt no-new-privileges \
   -e "HTTPS_PROXY=$EGRESS_PROXY" -e "HTTP_PROXY=$EGRESS_PROXY" \
   -e "NO_PROXY=localhost,127.0.0.1,::1,172.30.0.3" \
-  -e "ANTHROPIC_API_KEY=$PLACEHOLDER_KEY" \
-  "${HARNESS_ENV[@]}" \
+  "${AUTH_ENV[@]}" "${HARNESS_ENV[@]}" \
   "$AGENT_IMAGE" sleep infinity
 
 # The image must match the requested harness
@@ -89,5 +105,5 @@ if [[ "$HARNESS" == pi ]]; then
 else
   timeout --kill-after=30 "$LIMIT" docker exec "agent-$ID" "${CMD[@]}" > "$LOG" 2>&1 || rc=$?
 fi
-echo "agent $ID ($HARNESS) exited with status $rc; transcript: $LOG"
+echo "agent $ID ($HARNESS, $AUTH) exited with status $rc; transcript: $LOG"
 exit "$rc"

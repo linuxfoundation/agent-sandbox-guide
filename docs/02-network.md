@@ -74,6 +74,8 @@ All three supported harnesses ([Claude Code, pi, opencode](03-running-agents.md#
 | pi | `baseUrl` in `~/.pi/agent/models.json`, baked into the image from [`config/harness/pi/models.json`](../config/harness/pi/models.json). pi ignores `ANTHROPIC_BASE_URL`. **⚠ verify:** whether the value needs a `/v1` suffix (the source suggests not; the docs example has one). |
 | opencode | `providers.anthropic.settings.baseURL` (with `/v1`) in `/etc/opencode/opencode.json`, baked into the image from [`config/harness/opencode/opencode.json`](../config/harness/opencode/opencode.json). opencode ignores `ANTHROPIC_BASE_URL`. |
 
+To use a Claude Team/Enterprise seat (Claude Code only) or GitHub Copilot (opencode only) instead of an API key, see [Subscription logins](07-subscription-logins.md). Those modes change which placeholder the agent gets and what the proxy forwards.
+
 Keep the placeholder free of an `sk-ant-oat` prefix: pi treats that prefix as an OAuth token and changes how it authenticates.
 
 For Claude Code on Bedrock or Vertex, the agent gets `CLAUDE_CODE_SKIP_BEDROCK_AUTH=1` or `CLAUDE_CODE_SKIP_VERTEX_AUTH=1` plus `AWS_REGION` or `CLOUD_ML_REGION`. For Vertex, limit the proxy to `:rawPredict`, `:streamRawPredict` and `:countTokens`, and use an IAM role that holds only `aiplatform.endpoints.predict`. The pi and opencode configs here assume the Anthropic API.

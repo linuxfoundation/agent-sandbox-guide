@@ -14,7 +14,7 @@ It follows Anthropic's *Agent containment best practices*: the [getting started]
 | No host files in the guest | No bind mounts. The workspace is streamed in with `docker exec … tar`. |
 | No direct internet | The agent network is a Docker `--internal` bridge with no route out. |
 | Outbound allowlist | A Squid egress proxy allows only listed `host:port` entries over CONNECT. Everything else returns 403 and is logged. |
-| API key never in the guest | A credential proxy adds the key. The agent gets a placeholder. |
+| Credential never in the guest | A credential proxy adds the API key or [subscription token](docs/07-subscription-logins.md). The agent gets a placeholder. |
 | Bypass attempts logged | Host firewall rules log and drop anything leaving the agent bridge. |
 | Bounded runs | A turn limit for each harness, a hard wall-clock `timeout`, and `docker rm -f`. |
 | Evidence | Squid log, credential-proxy log, kernel firewall log, Kata/containerd/docker journals, and the agent transcript. Keep them for 30 days or more. |
@@ -65,6 +65,7 @@ Firecracker does not filter packets itself. All egress control happens on the ho
 4. [macOS workstations](docs/04-macos.md): Lima nested-virtualization VM, or a remote host.
 5. [Verify before you trust it](docs/05-verify.md): isolation and egress checks, plus a supervised escape test.
 6. [Logs and retention](docs/06-logging.md): where each log lives, and how to keep logs for 30 days or more.
+7. [Subscription logins](docs/07-subscription-logins.md): Claude Team/Enterprise seats with Claude Code, and GitHub Copilot with opencode, without an API key.
 
 ## Repository layout
 
